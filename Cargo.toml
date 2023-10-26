@@ -1,0 +1,15 @@
+[package]
+name = "cortex25519"
+authors = ["Dario Nieuwenhuis <dirbaio@dirbaio.net>"]
+version = "0.1.0"
+edition = "2021"
+readme = "README.md"
+license = "BSD-2-Clause"
+
+[dependencies]
+sha2 = { version = "0.10.0", default-features = false }
+generic-array = { version = "0.14", features = ["more_lengths"]}
+curve25519-dalek = { version =  "4.1.1", default-features = false }
+
+[build-dependencies]
+cc = "1.0"

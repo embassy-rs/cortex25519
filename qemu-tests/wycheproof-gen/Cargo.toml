@@ -1,0 +1,20 @@
+[package]
+name = "wycheproof-gen"
+version = "0.1.0"
+authors = ["Enrik Berkhan <Enrik.Berkhan@inka.de>"]
+edition = "2018"
+description = "Project Wycheproof tests for salty: generator."
+license = "Apache-2.0 OR MIT"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1.0.7"
+proc-macro2 = "1.0.24"
+syn = { version = "1.0.48", features=["full"] }
+
+serde      = { version = "1.0.117", features = ["derive"] }
+hex-serde  = { version =   "0.1.0" }
+serde_json = { version =  "1.0.59" }
+
