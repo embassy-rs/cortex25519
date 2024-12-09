@@ -5,12 +5,6 @@ verification, optimized with ASM for Cortex-M4 processors or higher (ARMv7e-M or
 
 Not reviewed, could have bugs, use at your own risk, etc etc.
 
-## Todo
-
-- ed25519 `sign()` is not constant time. DO NOT USE IN PRODUCTION. (`verify()` is OK since it only operates on public data.)
-- implement `from_bytes_mod_order_wide` using the asm field element impl.
-- remove dependency on ed25519-dalek.
-
 ## Credits
 
 Original [X25519](https://github.com/Emill/X25519-Cortex-M4) ASM implementation by Emil Lenngren.
