@@ -59,7 +59,7 @@ fn run_eddsa_verify(test_key: &Key, test_data: &SignatureTestVector) {
     let valid = if test_data.sig.len() == 64 {
         let pk = <[u8; 32]>::try_from(test_key.pk).unwrap();
         let sig = <[u8; 64]>::try_from(test_data.sig).unwrap();
-        verify(test_data.msg, pk, sig).is_ok()
+        verify(&[test_data.msg], pk, sig).is_ok()
     } else {
         false
     };
@@ -93,7 +93,7 @@ fn run_eddsa_sign(test_key: &Key, test_data: &SignatureTestVector) {
     let sk = <[u8; 32]>::try_from(test_key.sk).unwrap();
     let sig = <[u8; 64]>::try_from(test_data.sig).unwrap();
 
-    let testsig = sign(&test_data.msg, sk);
+    let testsig = sign(&[test_data.msg], sk);
     let valid = testsig == sig;
 
     if valid {

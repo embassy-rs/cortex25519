@@ -1,12 +1,12 @@
 pub use custom_hash::VerifyError;
 use sha2::Sha512;
 
-pub fn verify(message: &[u8], public_key: [u8; 32], sig: [u8; 64]) -> Result<(), VerifyError> {
-    custom_hash::verify::<Sha512>(message, public_key, sig)
+pub fn verify(messages: &[&[u8]], public_key: [u8; 32], sig: [u8; 64]) -> Result<(), VerifyError> {
+    custom_hash::verify::<Sha512>(messages, public_key, sig)
 }
 
-pub fn sign(message: &[u8], secret_key: [u8; 32]) -> [u8; 64] {
-    custom_hash::sign::<Sha512>(message, secret_key)
+pub fn sign(messages: &[&[u8]], secret_key: [u8; 32]) -> [u8; 64] {
+    custom_hash::sign::<Sha512>(messages, secret_key)
 }
 
 pub fn secret_to_public(secret_key: [u8; 32]) -> [u8; 32] {
@@ -66,7 +66,11 @@ pub mod custom_hash {
     #[derive(PartialEq, Eq, Clone, Copy, Debug)]
     pub struct VerifyError;
 
-    pub fn verify<D>(message: &[u8], public_key: [u8; 32], sig: [u8; 64]) -> Result<(), VerifyError>
+    pub fn verify<D>(
+        messages: &[&[u8]],
+        public_key: [u8; 32],
+        sig: [u8; 64],
+    ) -> Result<(), VerifyError>
     where
         D: Digest,
         D::OutputSize: Ed25519DigestLength,
@@ -81,7 +85,9 @@ pub mod custom_hash {
         let mut h = D::new();
         h.update(sig_r);
         h.update(public_key);
-        h.update(message);
+        for message in messages.iter() {
+            h.update(message);
+        }
         let k = D::OutputSize::hash_to_scalar(h.finalize());
 
         let pubkey_neg = -CompressedEdwardsY(public_key)
@@ -98,7 +104,7 @@ pub mod custom_hash {
         Ok(())
     }
 
-    pub fn sign<D>(message: &[u8], secret_key: [u8; 32]) -> [u8; 64]
+    pub fn sign<D>(messages: &[&[u8]], secret_key: [u8; 32]) -> [u8; 64]
     where
         D: Digest,
         D::OutputSize: Ed25519DigestLength,
@@ -108,7 +114,9 @@ pub mod custom_hash {
         // First hash
         let mut h = D::new();
         h.update(i.secret_nonce);
-        h.update(message);
+        for message in messages {
+            h.update(message);
+        }
         let r = D::OutputSize::hash_to_scalar(h.finalize());
 
         let r_point = r * ED25519_BASEPOINT_POINT;
@@ -118,7 +126,9 @@ pub mod custom_hash {
         let mut h = D::new();
         h.update(rr);
         h.update(i.public_key);
-        h.update(message);
+        for message in messages {
+            h.update(message);
+        }
         let k = D::OutputSize::hash_to_scalar(h.finalize());
 
         // Magic calculation
