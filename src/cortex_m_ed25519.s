@@ -196,15 +196,16 @@ ed25519_add_impl:
 ed25519_scalarmult:
 	.global ed25519_scalarmult
 	push {r0, r1, r4-r11,lr}
-	sub sp, sp, #260
-	// stack: p(x, y, z, t), r(x, y, z, t)
+	sub sp, sp, #264
+	// stack: px, py, pz, pt,  qx,  qy,  qz,  qt, bitpos, lastbit, result_ptr,  scalar_ptr, r4-r11, lr
+	//         0  32  64  96  128  160  192  224     256      260         264          268  272
 
-	// copy p from input
+	// copy q from input
 	mov r8, r2
-	mov r9, sp
+	add r9, sp, #128
 	bl copy128
 
-	// initialize r=0
+	// initialize p=0
 	mov r0, #0
 	mov r1, #0
 	mov r2, #0
@@ -213,7 +214,7 @@ ed25519_scalarmult:
 	mov r5, #0
 	mov r6, #0
 	mov r7, #0
-	add r8, sp, #128
+	mov r8, sp
 	stm r8!, {r0-r7}
 	mov r0, #1
 	stm r8!, {r0-r7}
@@ -223,32 +224,32 @@ ed25519_scalarmult:
 
 	//////////////////////////////////////////////
 
-	mov r0, #0 
-	str r0, [sp, #256] // loop counter
+	mov r0, #254   // bitpos
+	mov r3, #0     // lastbit
 
 0:
-	ldr r0, [sp, #256] // loop counter
-	lsr r1, r0, #3
-	ldr r2, [sp, #264] // scalar
-	ldrb r2, [r2, r1] // load byte i/8 from scalar
+	// load scalar bit into r1
+	lsrs r1, r0, #5
+	ldr r2, [sp, #268]
+	ldr r1, [r2, r1, lsl #2]
+	and r4, r0, #0x1f
+	lsrs r1, r1, r4
+	and r1, r1 ,#1
+	
+	strd r0, r1, [sp, #256]
 
-	// Do the add if bit i%8 is set
-	and r0, r0, #7
-	mov r1, #1
-	lsl r1, r1, r0
-	tst r2, r1
-	beq 1f
-	bl ed25519_add_impl
-1:
+	// if bit != lastbit, swap p and q 
+	eors r3,r1,r3
+	mov r0,sp
+	add r1,sp,#128
+	mov r2,#8
+	bl cswap
 
-	ldr r0, [sp, #256] // loop counter
-	add r0, r0, #1
-	cmp r0, #256
-	beq 2f
-	str r0, [sp, #256] // loop counter
+	// q = q+p
+	bl ed25519_add_impl 
 
 	//////////////////////////////////////////////
-	// BEGIN POINT DOUBLE
+	// BEGIN POINT DOUBLE. p = p+p
 	
 	sub sp, sp, #96
 	// We use 3 temporaries: a, b, c
@@ -340,35 +341,27 @@ ed25519_scalarmult:
 	add r8, sp, #192 // t
 	stm r8, {r0-r7}
 
-	////////////////////
-	//add r8, sp, #0 // a
-	//add r8, sp, #32 // b
-	//add r8, sp, #64 // c
-	//add r8, sp, #96 // x
-	//add r8, sp, #128 // y
-	//add r8, sp, #160 // z
-	//add r8, sp, #192 // t
-
 	add sp, sp, #96
 
 	// END POINT DOUBLE
 	
-	b 0b 
-2:
+	ldrd r2, r3, [sp, #256]
+	subs r0, r2, #1
+	bpl 0b
 
-	// copy r to output
-	add r8, sp, #128    // r
-	ldr r9, [sp, #260]  // output
+	// if lastbit=1, swap p and q 
+	mov r0,sp
+	add r1,sp,#128
+	mov r2,#8
+	bl cswap
+
+	// copy p to output
+	mov r8, sp
+	ldr r9, [sp, #264]  // output
 	bl copy128
 
-	// success!
-	mov r0, #1
-	add sp, sp, #268
-	pop {r4-r11,pc}
-
-fail2:
-	mov r0, #0
-	add sp, sp, #268
+	// done!
+	add sp, sp, #272
 	pop {r4-r11,pc}
 	.size ed25519_scalarmult, .-ed25519_scalarmult
 
@@ -621,7 +614,12 @@ ed25519_neg:
 
 .align 4
 ED25519_D:      .byte 0xa3, 0x78, 0x59, 0x13, 0xca, 0x4d, 0xeb, 0x75, 0xab, 0xd8, 0x41, 0x41, 0x4d, 0x0a, 0x70, 0x00, 0x98, 0xe8, 0x79, 0x77, 0x79, 0x40, 0xc7, 0x8c, 0x73, 0xfe, 0x6f, 0x2b, 0xee, 0x6c, 0x03, 0x52
+	.size ED25519_D, .-ED25519_D
 ED25519_D2:     .byte 0x59, 0xf1, 0xb2, 0x26, 0x94, 0x9b, 0xd6, 0xeb, 0x56, 0xb1, 0x83, 0x82, 0x9a, 0x14, 0xe0, 0x00, 0x30, 0xd1, 0xf3, 0xee, 0xf2, 0x80, 0x8e, 0x19, 0xe7, 0xfc, 0xdf, 0x56, 0xdc, 0xd9, 0x06, 0x24
+	.size ED25519_D2, .-ED25519_D2
 FE25519_SQRTM1: .byte 0xb0, 0xa0, 0x0e, 0x4a, 0x27, 0x1b, 0xee, 0xc4, 0x78, 0xe4, 0x2f, 0xad, 0x06, 0x18, 0x43, 0x2f, 0xa7, 0xd7, 0xfb, 0x3d, 0x99, 0x00, 0x4d, 0x2b, 0x0b, 0xdf, 0xc1, 0x4f, 0x80, 0x24, 0x83, 0x2b
+	.size FE25519_SQRTM1, .-FE25519_SQRTM1
 FE25519_ONE:    .byte 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.size FE25519_ONE, .-FE25519_ONE
 FE25519_TWO:    .byte 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+	.size FE25519_TWO, .-FE25519_TWO

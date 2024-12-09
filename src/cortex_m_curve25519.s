@@ -97,44 +97,14 @@ curve25519_scalarmult:
 	and r1,r1,#1
 	
 	strd r0,r1,[sp,#160]
-	
-	eors r1,r1,r3
-	rsbs lr,r1,#0
-	
+
+	// if bit != lastbit, swap p, q 	
+	eors r3,r1,r3
 	mov r0,sp
 	add r1,sp,#64
-	
-	mov r11,#4
-	// 15 cycles
-1:
-	ldm r0,{r2-r5}
-	ldm r1,{r6-r9}
-	
-	eors r2,r2,r6
-	and r10,r2,lr
-	eors r6,r6,r10
-	eors r2,r2,r6
-	
-	eors r3,r3,r7
-	and r10,r3,lr
-	eors r7,r7,r10
-	eors r3,r3,r7
-	
-	eors r4,r4,r8
-	and r10,r4,lr
-	eors r8,r8,r10
-	eors r4,r4,r8
-	
-	eors r5,r5,r9
-	and r10,r5,lr
-	eors r9,r9,r10
-	eors r5,r5,r9
-	
-	stm r0!,{r2-r5}
-	stm r1!,{r6-r9}
-	
-	subs r11,#1
-	bne 1b
+	mov r2,#4
+	bl cswap
+
 	// 40*4 - 2 = 158 cycles
 	
 	mov r8,sp
@@ -261,43 +231,7 @@ curve25519_scalarmult:
 	bpl 0b
 	// in total 2020 cycles per iteration, in total 515 098 cycles for 255 iterations
 
-	//These cswap lines are not needed for curve25519 since the lowest bit is hardcoded to 0
-	//----------
-	//rsbs lr,r3,#0
-	
-	//mov r0,sp
-	//add r1,sp,#64
-	
-	//mov r11,#4
-//1
-	//ldm r0,{r2-r5}
-	//ldm r1!,{r6-r9}
-	
-	//eors r2,r2,r6
-	//and r10,r2,lr
-	//eors r6,r6,r10
-	//eors r2,r2,r6
-	
-	//eors r3,r3,r7
-	//and r10,r3,lr
-	//eors r7,r7,r10
-	//eors r3,r3,r7
-	
-	//eors r4,r4,r8
-	//and r10,r4,lr
-	//eors r8,r8,r10
-	//eors r4,r4,r8
-	
-	//eors r5,r5,r9
-	//and r10,r5,lr
-	//eors r9,r9,r10
-	//eors r5,r5,r9
-	
-	//stm r0!,{r2-r5}
-	
-	//subs r11,#1
-	//bne 1b
-	//----------
+	// no cswap needed here for curve25519 since the lowest bit is hardcoded to 0
 
 	// now we must invert zp
 	add r1,sp,#32
@@ -323,3 +257,45 @@ curve25519_scalarmult:
 	
 	.size curve25519_scalarmult, .-curve25519_scalarmult
 
+
+
+// conditionally swap A and B in constant time.
+// in: *r0 = A, *r1 = B, *r2 = len/16, r3 = whether to swap
+	.type cswap, %function
+cswap:
+	.global cswap
+
+	// convert mask from 0/1 to 0/0xFFFF_FFFF
+	rsbs r3, r3, #0
+
+1:
+	ldm r0,{r4-r7}
+	ldm r1,{r8-r11}
+	
+	eors r4,r4,r8
+	and r12,r4,r3
+	eors r8,r8,r12
+	eors r4,r4,r8
+	
+	eors r5,r5,r9
+	and r12,r5,r3
+	eors r9,r9,r12
+	eors r5,r5,r9
+	
+	eors r6,r6,r10
+	and r12,r6,r3
+	eors r10,r10,r12
+	eors r6,r6,r10
+	
+	eors r7,r7,r11
+	and r12,r7,r3
+	eors r11,r11,r12
+	eors r7,r7,r11
+	
+	stm r0!,{r4-r7}
+	stm r1!,{r8-r11}
+	
+	subs r2,#1
+	bne 1b
+	bx lr
+	.size cswap, .-cswap
