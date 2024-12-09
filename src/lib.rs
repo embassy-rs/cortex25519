@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(bigint_helper_methods)]
 
 mod backend;
 
