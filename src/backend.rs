@@ -1,6 +1,11 @@
+use core::arch::global_asm;
 use core::ops::{Add, Mul, Neg};
 
 pub use curve25519_dalek::scalar::Scalar;
+
+global_asm!(include_str!("cortex_m_fe25519.s"), options(raw));
+global_asm!(include_str!("cortex_m_curve25519.s"), options(raw));
+global_asm!(include_str!("cortex_m_ed25519.s"), options(raw));
 
 extern "C" {
     fn curve25519_scalarmult(
